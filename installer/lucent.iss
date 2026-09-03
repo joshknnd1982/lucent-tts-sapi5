@@ -4,9 +4,10 @@
 ; (SetupLogging=yes); the wrapper's own logs go to %LOCALAPPDATA%\LucentSAPI\logs.
 
 #define MyAppName "Lucent TTS SAPI 5"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "Lucent TTS SAPI 5 wrapper project"
-#define MyAppURL "https://github.com/joshknnd1982"
+#define MyAppURL "https://github.com/joshknnd1982/lucent-tts-sapi5"
+#define MyAppCopyright "Open source wrapper; see LICENSE. Lucent Technologies text-to-speech engine is the property of its owners."
 #define SrcRoot ".."
 
 [Setup]
@@ -15,6 +16,9 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}/issues
+AppUpdatesURL={#MyAppURL}/releases
+AppCopyright={#MyAppCopyright}
 DefaultDirName={autopf}\LucentSAPI
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
@@ -28,6 +32,26 @@ UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\LucentConfig.exe
 WizardStyle=modern
 CloseApplications=no
+SetupIconFile={#SrcRoot}\src\config.ico
+
+; Identity metadata for the generated Setup.exe.  Without these the file ships with a
+; blank FileVersion and no copyright, which is one of the signals Microsoft Defender's
+; ML models and SmartScreen weigh when they score an unsigned download.
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoProductVersion={#MyAppVersion}.0
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoDescription={#MyAppName} Setup
+VersionInfoCopyright={#MyAppCopyright}
+VersionInfoOriginalFileName=LucentSAPI_Setup.exe
+
+; Authenticode signing.  build_all.bat passes /DSIGN and /Slucentsign=... when a code
+; signing certificate is configured, which signs both Setup.exe and the uninstaller that
+; Inno generates at install time.  Unsigned builds simply skip this.
+#ifdef SIGN
+SignTool=lucentsign
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

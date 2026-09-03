@@ -2,5 +2,13 @@ build
 build_x64
 build_x86
 output
-bin/engine/
 *.log
+
+# Everything under bin/ is the proprietary Lucent package (and the Active Call Center
+# installer it was extracted from). It ships only inside the release installer, never in
+# the repository. Ignoring the whole folder rather than just bin/engine/ keeps the
+# original 55 MB archive and its password out of an accidental "git add .".
+bin/
+
+# Generated sample audio.
+samples/

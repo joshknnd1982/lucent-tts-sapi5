@@ -20,12 +20,13 @@ proprietary and are shipped inside the installer.
 4. [Text controls](#text-controls)
 5. [How the wrapper works](#how-the-wrapper-works)
 6. [Installing](#installing)
-7. [Configuration utility](#configuration-utility)
-8. [Logs and troubleshooting](#logs-and-troubleshooting)
-9. [Building from source](#building-from-source)
-10. [Testing](#testing)
-11. [Repository layout](#repository-layout)
-12. [Credits and license](#credits-and-license)
+7. [SmartScreen, Defender and code signing](#smartscreen-defender-and-code-signing)
+8. [Configuration utility](#configuration-utility)
+9. [Logs and troubleshooting](#logs-and-troubleshooting)
+10. [Building from source](#building-from-source)
+11. [Testing](#testing)
+12. [Repository layout](#repository-layout)
+13. [Credits and license](#credits-and-license)
 
 ## The Lucent TTS engine
 
@@ -170,6 +171,100 @@ registers the 32-bit DLL with the 32-bit `regsvr32` view and the 64-bit DLL with
 64-bit view, records the install folder in `HKLM\Software\LucentSAPI` (both registry
 views) and writes a full setup log to `%TEMP%\Setup Log <date> #<n>.txt`. Uninstalling
 removes the registrations, the files and the generated channel files.
+
+## SmartScreen, Defender and code signing
+
+The first time you run `LucentSAPI_Setup.exe` Windows 11 shows a blue dialog headed
+**"Windows protected your PC"**, with a **Run anyway** button hidden behind **More info**.
+Some browsers add their own warning on the download. This is expected, it is not a virus
+detection, and it does not mean the installer has been tampered with.
+
+### What is actually happening
+
+That dialog is **Microsoft Defender SmartScreen**, and it fires on *reputation*, not on
+content. SmartScreen scores two things: whether the file is signed by a known publisher,
+and how many people have downloaded that exact file without trouble. A brand-new
+installer from a small project scores zero on both, so it is "unrecognized" and you get
+the prompt. Microsoft Defender's actual antivirus scanner is a separate system, and it
+reports this installer clean.
+
+You can confirm that yourself before running anything:
+
+```
+"%ProgramFiles%\Windows Defender\MpCmdRun.exe" -Scan -ScanType 3 -File "%USERPROFILE%\Downloads\LucentSAPI_Setup.exe"
+```
+
+If Defender ever does report a threat name for this file, it is a false positive. Report
+it at <https://www.microsoft.com/en-us/wdsi/filesubmission> — pick "Software developer",
+attach the installer, and reference this repository. Microsoft usually corrects generic
+machine-learning detections within a day or two, and the correction reaches every machine
+through the normal definition update.
+
+### What this project does about it
+
+Nothing here removes the prompt outright, but everything that lowers a file's heuristic
+score has been done:
+
+* **Every shipped binary carries a full version resource.** Through 1.0.0 the two
+  `LucentSAPI.dll` builds had a completely empty version resource and `Setup.exe` had a
+  blank `FileVersion`. An unsigned, metadata-free DLL that registers itself as an
+  in-process COM server is close to the shape Defender's machine-learning models are
+  trained to distrust. `installer\verify_metadata.ps1` now fails the build if any shipped
+  file loses its company, product, description or version string.
+* **`LucentConfig.exe` ships a real application manifest** declaring `asInvoker` and
+  supported Windows versions, so Windows stops treating it as a pre-Vista legacy binary
+  and stops guessing at an executable whose name contains "Config".
+* **The installer declares its publisher, copyright, support URL and version** in its own
+  version resource instead of shipping blank fields.
+* **The build is ready to sign.** Set one environment variable and `build_all.bat` signs
+  the two DLLs, the utility, `Setup.exe` and the generated uninstaller.
+
+### Signing it yourself
+
+`installer\sign.ps1` runs on every build and does nothing unless a certificate is
+configured. To sign, set **one** of these before running `build_all.bat`:
+
+```
+set LUCENT_SIGN_THUMBPRINT=<40 hex characters of a cert in your store>
+```
+
+```
+set LUCENT_SIGN_PFX=C:\path\to\cert.pfx
+set LUCENT_SIGN_PASS=<pfx password>
+```
+
+Optionally `LUCENT_SIGN_TS` to pick a different RFC3161 timestamp server. The script
+finds `signtool.exe` in the Windows SDK, signs with SHA-256 and timestamps, and prints
+the resulting signature status.
+
+### What signing does and does not buy you
+
+Be clear-eyed about this before spending money:
+
+| | First-download behaviour |
+| --- | --- |
+| Unsigned (what ships today) | "Windows protected your PC"; user clicks **Run anyway** |
+| **Self-signed** | **Identical to unsigned** — Windows does not trust the root, so this buys nothing and is for local testing only |
+| OV certificate (~$150–300/yr) | Still warns, but names a verified publisher, and reputation carries across releases |
+| EV certificate ($400+/yr) | **Same as OV.** EV stopped bypassing SmartScreen in 2024 |
+| Microsoft Store (MSIX) | No warning at all |
+
+There is no longer any certificate that silences SmartScreen on day one, and there is no
+form to submit a file for consumer SmartScreen review — reputation accumulates only from
+download volume, over weeks. What a certificate does buy is *continuity*: an unsigned
+release starts from zero reputation every single time, while releases signed with one
+consistent identity let reputation build up across versions.
+
+For an open-source project like this one, [SignPath Foundation](https://signpath.io)
+provides free OV-level signing to qualifying projects, and Microsoft's
+[Azure Artifact Signing](https://learn.microsoft.com/en-us/azure/trusted-signing/) is
+about $9.99/month (individuals: USA and Canada only). Either would plug straight into
+`LUCENT_SIGN_THUMBPRINT`.
+
+Microsoft's own documentation on the topic:
+[code signing options](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options)
+and
+[SmartScreen reputation](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation).
 
 ## Configuration utility
 

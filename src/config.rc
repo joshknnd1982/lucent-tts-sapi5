@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #include "config_resource.h"
+#include "version.h"
 
 // Every edit control is immediately preceded by its own static label so MSAA (and
 // therefore NVDA / JAWS) names it from that label.  Up-down buttons are not tab stops.
@@ -71,22 +72,27 @@ END
 IDI_APP ICON "config.ico"
 
 1 VERSIONINFO
-FILEVERSION 1,0,0,0
-PRODUCTVERSION 1,0,0,0
-FILEOS 0x4
-FILETYPE 0x1
+FILEVERSION LUCENT_VERSION_COMMA
+PRODUCTVERSION LUCENT_VERSION_COMMA
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0x0L
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE VFT2_UNKNOWN
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Lucent TTS SAPI 5 wrapper"
+            VALUE "CompanyName", LUCENT_COMPANY
             VALUE "FileDescription", "Lucent TTS Configuration"
-            VALUE "FileVersion", "1.0.0.0"
+            VALUE "FileVersion", LUCENT_VERSION_STR
             VALUE "InternalName", "LucentConfig"
+            VALUE "LegalCopyright", LUCENT_COPYRIGHT
             VALUE "OriginalFilename", "LucentConfig.exe"
-            VALUE "ProductName", "Lucent TTS SAPI 5"
-            VALUE "ProductVersion", "1.0.0.0"
+            VALUE "ProductName", LUCENT_PRODUCT
+            VALUE "ProductVersion", LUCENT_VERSION_STR
+            VALUE "Comments", "Settings dialog for the Lucent TTS SAPI 5 voice. " LUCENT_URL
         END
     END
     BLOCK "VarFileInfo"

@@ -67,6 +67,16 @@ if errorlevel 1 (
 )
 
 echo.
+echo === signing payload binaries ===
+rem No certificate configured means sign.ps1 prints a notice and succeeds, so an
+rem unsigned build still completes.  See installer\sign.ps1 for the env vars.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%installer\sign.ps1" "%OUTPUT_DIR%\LucentSAPI.dll" "%OUTPUT_DIR%\x64\LucentSAPI.dll" "%OUTPUT_DIR%\LucentConfig.exe"
+if errorlevel 1 (
+    echo ERROR: signing failed.
+    exit /b 1
+)
+
+echo.
 echo === installer ===
 set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 if not exist "%ISCC%" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
@@ -74,9 +84,25 @@ if not exist "%ISCC%" (
     echo WARNING: ISCC.exe not found; installer not built.
     goto :done
 )
-"%ISCC%" /Q "/O%OUTPUT_DIR%" "%ROOT%installer\lucent.iss"
+rem $q is Inno's escape for a double quote inside a SignTool command line.
+set "SIGNARG="
+if defined LUCENT_SIGN_THUMBPRINT goto :signon
+if defined LUCENT_SIGN_PFX goto :signon
+goto :signoff
+:signon
+set SIGNARG=/DSIGN "/Slucentsign=$q%ROOT%installer\sign_one.bat$q $q$f$q"
+:signoff
+"%ISCC%" /Q %SIGNARG% "/O%OUTPUT_DIR%" "%ROOT%installer\lucent.iss"
 if errorlevel 1 (
     echo ERROR: installer build failed.
+    exit /b 1
+)
+
+echo.
+echo === shipped file identity ===
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%installer\verify_metadata.ps1" "%OUTPUT_DIR%"
+if errorlevel 1 (
+    echo ERROR: shipped binaries are missing version metadata.
     exit /b 1
 )
 

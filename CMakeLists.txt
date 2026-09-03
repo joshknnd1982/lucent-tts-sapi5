@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(LucentSAPI VERSION 1.0.0 LANGUAGES C CXX)
+project(LucentSAPI VERSION 1.0.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,6 +40,7 @@ add_library(LucentSAPI SHARED
     src/ISpTTSEngineImpl.cpp
     src/voice_token.cpp
     src/lucent_sapi.def
+    src/sapi.rc
 )
 target_link_libraries(LucentSAPI PRIVATE lucent_core ole32 oleaut32 advapi32 shell32)
 if(BUILD_X64)
@@ -58,6 +59,7 @@ target_link_libraries(sapi_test PRIVATE ole32 oleaut32 advapi32 sapi)
 add_executable(LucentConfig WIN32
     src/config_main.cpp
     src/config.rc
+    src/LucentConfig.manifest
 )
 target_link_libraries(LucentConfig PRIVATE lucent_core comctl32 ole32 oleaut32 sapi shell32 user32 gdi32)
 if(MSVC)
