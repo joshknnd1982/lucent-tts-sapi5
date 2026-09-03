@@ -1,0 +1,10 @@
+* text=auto
+*.bat text eol=crlf
+*.iss text eol=crlf
+*.ps1 text eol=crlf
+*.rc text eol=crlf
+*.ico binary
+*.wav binary
+*.exe binary
+*.dll binary
+*.zip binary
