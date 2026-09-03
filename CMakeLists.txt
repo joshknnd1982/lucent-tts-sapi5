@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(LucentSAPI VERSION 1.0.1 LANGUAGES C CXX)
+project(LucentSAPI VERSION 1.0.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -26,6 +26,7 @@ endif()
 add_library(lucent_core STATIC
     src/lucent_engine.cpp
     src/lucent_settings.cpp
+    src/lucent_textfix.cpp
 )
 target_include_directories(lucent_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(lucent_core PUBLIC advapi32)
@@ -50,6 +51,11 @@ endif()
 # Direct engine test (no SAPI).
 add_executable(engine_test test/engine_test.cpp)
 target_link_libraries(engine_test PRIVATE lucent_core)
+
+# Arbitrary-text probe: speaks lines from a file and reports byte counts, so an input
+# that makes a front end emit nothing is visible.
+add_executable(text_test test/text_test.cpp)
+target_link_libraries(text_test PRIVATE lucent_core)
 
 # End-to-end SAPI test.
 add_executable(sapi_test test/sapi_test.cpp)

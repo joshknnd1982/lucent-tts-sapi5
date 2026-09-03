@@ -1,0 +1,54 @@
+# Inputs the standard-French front end (fslmlfrend) rejects outright.
+#
+# Every line in this file produced ZERO audio bytes before src/lucent_textfix.cpp existed:
+# the front end fails the whole utterance rather than skipping what it cannot pronounce,
+# and the engine then reports a clean end of stream after no audio at all. Pierre and
+# Madeleine were simply silent in NVDA.
+#
+# One utterance per line, UTF-8. Lines starting with '#' are comments.
+# Run:  text_test bin\engine French Pierre test\french_corpus.txt
+# The exit code is the number of lines that produced no audio, so it must be 0.
+
+# --- verbatim from the NVDA session that reported the bug ---
+Lucent  Pierre ( French)
+Lucent  Madeleine ( French)
+Rate:   slider   70   Alt  pluss   r
+Voice:   combo  box   Lucent  Pierre ( French)   collapsed   Alt  pluss    v
+
+# --- reduction: an utterance whose last token is punctuation ---
+Lucent Pierre (French)
+Pierre (French)
+Pierre (
+French)
+un (
+deux (
+un deux )
+
+# --- reduction: symbols rejected wherever they appear ---
+un % deux
+un ^ deux
+un | deux
+
+# --- reduction: ordinary words rejected outright. "alt" and "al" are accepted where
+#     "Alt" and "Al" are not, which is what the case-folding repair pass exploits.
+Alt
+Al
+Alt pluss r
+un Alt deux
+Bonjour Al.
+
+# --- controls that already worked and must keep working ---
+Bonjour. Ceci est un test.
+Bonjour, ceci est le système de synthèse vocale Lucent. Quelle heure est-il ?
+Hello this is a test
+Lucent
+Rate:
+slider 70
+pluss r
+alt
+ALT
+un ( deux
+un ) deux
+( Pierre
+Il a dit « bonjour » à 15 h 30, puis il est parti.
+L'élève a réussi l'examen : 18 sur 20 !

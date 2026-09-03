@@ -67,6 +67,30 @@ if errorlevel 1 (
 )
 
 echo.
+echo === rejected-text regression ===
+rem Some front ends refuse a whole utterance rather than skipping what they cannot
+rem pronounce, and the engine then reports a clean end of stream after no audio at all.
+rem Every line of these corpora was silent before src\lucent_textfix.cpp existed.
+rem text_test exits with the number of lines that produced no audio, so nonzero fails.
+rem It also fails when a bookmark offset goes backwards or past the end of the audio,
+rem which is what a piecewise retry would do if it did not rebase them.
+call :corpus French Pierre french_corpus fr_corpus_pierre
+if errorlevel 1 exit /b 1
+call :corpus French Madeleine punctuation_sweep fr_sweep_madeleine
+if errorlevel 1 exit /b 1
+call :corpus French Pierre french_marks fr_marks_pierre
+if errorlevel 1 exit /b 1
+call :corpus Italian Carlo punctuation_sweep it_sweep_carlo
+if errorlevel 1 exit /b 1
+call :corpus German Rainer punctuation_sweep de_sweep_rainer
+if errorlevel 1 exit /b 1
+call :corpus EnglishUS John punctuation_sweep en_sweep_john
+if errorlevel 1 exit /b 1
+call :corpus ChineseMandarin Ming punctuation_sweep zh_sweep_ming
+if errorlevel 1 exit /b 1
+echo all corpora spoke.
+
+echo.
 echo === signing payload binaries ===
 rem No certificate configured means sign.ps1 prints a notice and succeeds, so an
 rem unsigned build still completes.  See installer\sign.ps1 for the env vars.
@@ -110,3 +134,16 @@ if errorlevel 1 (
 echo.
 echo Build completed. Output in %OUTPUT_DIR%
 endlocal
+exit /b 0
+
+rem :corpus <language> <speaker> <corpusName> <reportName>
+rem Speaks every line of test\<corpusName>.txt with that voice and fails the build if any
+rem line produced no audio or reported a bad bookmark offset.
+:corpus
+"%BUILD_DIR_X64%\bin\Release\text_test.exe" "%ROOT%bin\engine" %1 %2 "%ROOT%test\%3.txt" >"%OUTPUT_DIR%\%4.txt"
+if errorlevel 1 (
+    echo ERROR: %1 / %2 failed on %3 - see %OUTPUT_DIR%\%4.txt
+    exit /b 1
+)
+echo   %1 %2 x %3: ok
+exit /b 0

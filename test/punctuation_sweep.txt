@@ -1,0 +1,111 @@
+# Probe 4: does terminating the utterance with a period rescue it?
+# Block A: each punctuation mark as the FINAL token, no period.
+un deux !
+un deux "
+un deux #
+un deux $
+un deux %
+un deux &
+un deux '
+un deux (
+un deux )
+un deux *
+un deux +
+un deux ,
+un deux -
+un deux .
+un deux /
+un deux :
+un deux ;
+un deux <
+un deux =
+un deux >
+un deux ?
+un deux @
+un deux [
+un deux \
+un deux ]
+un deux ^
+un deux _
+un deux `
+un deux {
+un deux |
+un deux }
+un deux ~
+# Block B: the same, with a period appended.
+un deux !.
+un deux ".
+un deux #.
+un deux $.
+un deux %.
+un deux &.
+un deux '.
+un deux (.
+un deux ).
+un deux *.
+un deux +.
+un deux ,.
+un deux -.
+un deux ..
+un deux /.
+un deux :.
+un deux ;.
+un deux <.
+un deux =.
+un deux >.
+un deux ?.
+un deux @.
+un deux [.
+un deux \.
+un deux ].
+un deux ^.
+un deux _.
+un deux `.
+un deux {.
+un deux |.
+un deux }.
+un deux ~.
+# Block C: each punctuation mark in the MIDDLE, period-terminated.
+un ! deux.
+un " deux.
+un # deux.
+un $ deux.
+un % deux.
+un & deux.
+un ' deux.
+un ( deux.
+un ) deux.
+un * deux.
+un + deux.
+un , deux.
+un - deux.
+un . deux.
+un / deux.
+un : deux.
+un ; deux.
+un < deux.
+un = deux.
+un > deux.
+un ? deux.
+un @ deux.
+un [ deux.
+un \ deux.
+un ] deux.
+un ^ deux.
+un _ deux.
+un ` deux.
+un { deux.
+un | deux.
+un } deux.
+un ~ deux.
+# Block D: poison tokens with and without a period.
+Alt
+Alt.
+Alt .
+un Alt deux.
+Bonjour Alt.
+Al
+Al.
+Al .
+un Al deux.
+Bonjour Al.

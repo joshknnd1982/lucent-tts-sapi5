@@ -66,7 +66,7 @@ and no 64-bit application can load them. Because the real work happens in a sepa
 process that talks a simple byte protocol, the wrapper spawns `ttsserver.exe` directly
 from both the x86 and the x64 SAPI 5 DLL and never touches the SAPI 4 pieces.
 
-### Two engine quirks worth knowing
+### Three engine quirks worth knowing
 
 * **Whispering voices.** The intonation module locates its data bank by joining the
   `-directory` and `-parameters` options of the channel file. On Windows 10/11 that join
@@ -78,6 +78,62 @@ from both the x86 and the x64 SAPI 5 DLL and never touches the SAPI 4 pieces.
 * **No spaces in module options.** The channel-file parser splits on whitespace and has no
   quoting, so any absolute path containing a space (`C:\Program Files\...`) breaks every
   module. The wrapper writes its channel files with paths relative to the engine folder.
+
+### Text a front end refuses outright
+
+Most engines skip what they cannot pronounce. Two of Lucent's front ends fail the *whole
+utterance* instead: the module chain aborts, the engine reports a clean end of stream
+after zero audio bytes, and the caller simply hears nothing. In the engine log it looks
+like this:
+
+```
+[fslmlfe.compose] The composition with "data/languages/frafrs\lfrafrs.i2m.fsm"
+resulted in an empty machine.  The input text being processed is at buffer
+position 1 and has the value "\Mrk=1\ Lucent  \Mrk=2\ Pierre ( \Mrk=3\ French) \Mrk=4\ ".
+aChannel :: processNextModule failed on cahnnel 5.
+```
+
+Because a screen reader shows no error for an utterance that renders no samples, this
+presented as "Pierre and Madeleine do not speak" even though the channel opened correctly
+and every other voice worked.
+
+Measured over a 106-case sweep of the shipped data (`test/punctuation_sweep.txt`):
+
+| Voice | Rejects |
+|-------|---------|
+| **Standard French** (`fslmlfrend`) | `%`, `^`, `|` anywhere; any utterance whose final token is punctuation unless it ends in `.`, `!` or `?`; and some ordinary words outright — `Alt` and `Al` among them, though `alt` and `al` are fine |
+| **Italian** | `` ` `` and `|`, the same way |
+| Canadian French, German, US English, Spanish, Mandarin | nothing |
+
+This is the engine's own data, not a misconfiguration: the generated channel file matches
+Lucent's shipped template exactly, and substituting the other front end (`mlfrend`, which
+Canadian French uses) makes standard French produce nothing at all.
+
+So the wrapper treats a rejection as something to recover from rather than pass on. Text
+is sent unchanged first; only if the engine returns zero bytes for text that did contain a
+letter or digit does `src/lucent_textfix.cpp` step in, retrying with progressively simpler
+text until something speaks:
+
+1. drop the symbols that are rejected wherever they appear, and terminate the utterance
+   with `.` if it does not already end in sentence punctuation — this alone recovers most
+   real cases, including every line NVDA sent;
+2. reduce to letters, digits, whitespace, intra-word apostrophes and hyphens, and
+   sentence punctuation;
+3. fold `A`–`Z` to lower case, which is what rescues `Alt`;
+4. as a last resort, speak one word at a time, so a token the engine cannot handle costs
+   that word instead of the whole utterance.
+
+Bookmark offsets are rebased onto the running total when an utterance is re-spoken
+piecewise, so NVDA's cursor tracking and say-all still line up with the audio. Under a
+double-byte code page (Mandarin) a trail byte can share a value with an ASCII letter, so
+there the text is only terminated, never filtered byte by byte.
+
+The cost when nothing is wrong is zero — the repair path never runs. When it does, a
+rejection comes back in about a millisecond, so a retry is not audible.
+
+`build_all.bat` runs these corpora against seven voices on every build and fails if any
+line goes silent or reports a bookmark offset that moves backwards or past the end of the
+audio.
 
 ## Languages and voices
 

@@ -1,4 +1,5 @@
 #include "lucent_engine.h"
+#include "lucent_textfix.h"
 #include "lucent_log.h"
 #include <cstdio>
 #include <cstring>
@@ -446,8 +447,9 @@ void LucentEngine::cancel() {
     SetEvent(packetEvent_);
 }
 
-bool LucentEngine::speak(const VoiceRequest& req, const std::string& text, SpeakSink& sink, bool* aborted) {
+bool LucentEngine::speakOnce(const VoiceRequest& req, const std::string& text, SpeakSink& sink, bool* aborted, uint64_t* produced) {
     if (aborted) *aborted = false;
+    if (produced) *produced = 0;
     if (!ensureRunning()) return false;
     Channel* ch = openChannel(req);
     if (!ch) return false;
@@ -501,6 +503,7 @@ bool LucentEngine::speak(const VoiceRequest& req, const std::string& text, Speak
                 // Text with nothing speakable produces no audio packets at all.
                 LLOG("engine: text consumed without audio; treating as end of stream");
                 if (aborted) *aborted = discarding;
+                if (produced) *produced = emitted;
                 activeChannel_ = 0;
                 return true;
             }
@@ -553,6 +556,7 @@ bool LucentEngine::speak(const VoiceRequest& req, const std::string& text, Speak
             if (ab.flags & AF_End) {
                 LLOG("engine: end of stream, %llu bytes in %llu ms%s", emitted, GetTickCount64() - t0, discarding ? " (discarded)" : "");
                 if (aborted) *aborted = discarding;
+                if (produced) *produced = emitted;
                 activeChannel_ = 0;
                 return true;
             }
@@ -565,6 +569,78 @@ bool LucentEngine::speak(const VoiceRequest& req, const std::string& text, Speak
             break;
         }
     }
+}
+
+bool LucentEngine::speak(const VoiceRequest& req, const std::string& text, SpeakSink& sink, bool* aborted) {
+    bool localAborted = false;
+    uint64_t produced = 0;
+    if (!speakOnce(req, text, sink, &localAborted, &produced)) return false;
+    if (aborted) *aborted = localAborted;
+
+    // Silence is only a bug when there was something to say. A fragment holding nothing
+    // but a bookmark legitimately renders no audio.
+    if (produced || localAborted || !hasSpeakableContent(text)) return true;
+
+    LLOG("engine: front end returned no audio for speakable text; repairing");
+
+    const unsigned int codePage = req.language ? req.language->codePage : 1252u;
+    std::string lastTried;                              // successive passes often agree
+    for (int pass = 1; pass <= 3; ++pass) {
+        const std::string repaired = repairText(text, pass, codePage);
+        if (repaired.empty() || repaired == lastTried) continue;
+        lastTried = repaired;
+        produced = 0;
+        if (!speakOnce(req, repaired, sink, &localAborted, &produced)) return false;
+        if (aborted) *aborted = localAborted;
+        if (produced || localAborted) {
+            LLOG("engine: repair pass %d recovered the utterance (%llu bytes)", pass, produced);
+            return true;
+        }
+    }
+
+    // Last resort: one word at a time, so a token the front end cannot handle costs that
+    // word rather than the whole utterance. Bookmark offsets are rebased onto the running
+    // total, since each piece reports its own from zero.
+    const std::vector<std::string> words = splitIntoWords(text);
+    if (words.empty()) {
+        LLOG("engine: no repair recovered the utterance");
+        return true;
+    }
+
+    uint64_t base = 0;
+    size_t spokenWords = 0, silentWords = 0;
+    SpeakSink rebased;
+    rebased.onAudio = [&](const uint8_t* pcm, size_t bytes) { return sink.onAudio(pcm, bytes); };
+    rebased.onBookmark = [&](uint32_t id, uint32_t offset) {
+        if (sink.onBookmark) sink.onBookmark(id, static_cast<uint32_t>(base + offset));
+    };
+
+    for (const std::string& word : words) {
+        uint64_t wordBytes = 0;
+        if (!speakOnce(req, word, rebased, &localAborted, &wordBytes)) return false;
+        if (localAborted) {
+            if (aborted) *aborted = true;
+            return true;
+        }
+        // A word rejected on its own gets the full repair ladder too, so a token like
+        // "Alt" is still heard (as "alt") instead of being dropped.
+        std::string lastWordTried;
+        for (int pass = 1; !wordBytes && pass <= 3; ++pass) {
+            const std::string repaired = repairText(word, pass, codePage);
+            if (repaired.empty() || repaired == lastWordTried) continue;
+            lastWordTried = repaired;
+            if (!speakOnce(req, repaired, rebased, &localAborted, &wordBytes)) return false;
+            if (localAborted) {
+                if (aborted) *aborted = true;
+                return true;
+            }
+        }
+        if (wordBytes) ++spokenWords; else ++silentWords;
+        base += wordBytes;
+    }
+    LLOG("engine: word-by-word retry spoke %zu of %zu words, %zu still silent (%llu bytes)",
+         spokenWords, words.size(), silentWords, base);
+    return true;
 }
 
 }  // namespace lucent

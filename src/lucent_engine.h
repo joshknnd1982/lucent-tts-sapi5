@@ -50,6 +50,12 @@ public:
     // with the given voice.  Blocks until the engine reports end of stream, the sink
     // aborts, or a deadline passes.  Returns false on transport failure (the child is
     // restarted on the next call).
+    //
+    // Some front ends reject an utterance outright instead of skipping what they cannot
+    // pronounce, returning a clean end of stream after zero audio bytes.  When that
+    // happens to text that did have something speakable in it, this retries with
+    // progressively simpler text (see lucent_textfix.h) rather than passing silence on to
+    // a screen reader.
     bool speak(const VoiceRequest& req, const std::string& text, SpeakSink& sink, bool* aborted);
 
     // Asks the engine to drop everything queued on the current channel.  Safe to call
@@ -69,6 +75,11 @@ private:
         float lastVolume = -1.0f;
         float lastSpeed = -1.0f;
     };
+
+    // One engine transaction: send the text, pump packets until end of stream. Reports
+    // how many PCM bytes reached the sink so speak() can tell a rejected utterance from a
+    // legitimately silent one.
+    bool speakOnce(const VoiceRequest& req, const std::string& text, SpeakSink& sink, bool* aborted, uint64_t* produced);
 
     bool launch();
     void closeHandles();

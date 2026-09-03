@@ -1,0 +1,12 @@
+# Rejected French text carrying \Mrk=n\ bookmarks, exactly as the SAPI layer emits them.
+# The repair path may re-speak an utterance one word at a time, and each piece reports its
+# bookmark offsets from zero; if they are not rebased onto the running total, NVDA's
+# cursor tracking and say-all break. Offsets must climb and stay within the audio.
+#
+# Every line below was silent before the repair path existed.
+ \Mrk=1\ Lucent  \Mrk=2\ Pierre ( \Mrk=3\ French)  \Mrk=4\
+ \Mrk=1\ Rate:   \Mrk=2\ slider   \Mrk=3\ 70   \Mrk=4\ Alt  \Mrk=5\ pluss   \Mrk=6\ r   \Mrk=7\
+ \Mrk=10\ Voice:   \Mrk=11\ combo  \Mrk=12\ box   \Mrk=13\ Lucent  \Mrk=14\ Pierre ( \Mrk=15\ French)   \Mrk=16\ collapsed
+ \Mrk=1\ un  \Mrk=2\ %  \Mrk=3\ deux  \Mrk=4\ trois
+# A control that already worked: bookmarks must still be right on the normal path.
+ \Mrk=1\ Bonjour.  \Mrk=2\ Ceci est un test.  \Mrk=3\ Au revoir.

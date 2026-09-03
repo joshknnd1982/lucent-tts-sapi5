@@ -4,7 +4,7 @@
 ; (SetupLogging=yes); the wrapper's own logs go to %LOCALAPPDATA%\LucentSAPI\logs.
 
 #define MyAppName "Lucent TTS SAPI 5"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "Lucent TTS SAPI 5 wrapper project"
 #define MyAppURL "https://github.com/joshknnd1982/lucent-tts-sapi5"
 #define MyAppCopyright "Open source wrapper; see LICENSE. Lucent Technologies text-to-speech engine is the property of its owners."
