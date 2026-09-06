@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(LucentSAPI VERSION 1.0.2 LANGUAGES C CXX)
+project(LucentSAPI VERSION 1.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,6 +25,7 @@ endif()
 # Engine client library shared by every component.
 add_library(lucent_core STATIC
     src/lucent_engine.cpp
+    src/installed_voices.cpp
     src/lucent_settings.cpp
     src/lucent_textfix.cpp
 )

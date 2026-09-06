@@ -14,6 +14,7 @@
 #include <thread>
 #include <atomic>
 #include "config_resource.h"
+#include "installed_voices.h"
 #include "lucent_settings.h"
 #include "lucent_engine.h"
 #include "lucent_log.h"
@@ -100,6 +101,7 @@ void fillSpeakers(HWND dlg) {
     int sel = 0;
     for (size_t i = 0; i < n; ++i) {
         if (_wcsicmp(sp[i].language, g_settings.language.c_str()) != 0) continue;
+        if (!isSpeakerInstalled(i)) continue;
         std::wstring label = sp[i].name;
         label += sp[i].female ? L" (female)" : L" (male)";
         int idx = static_cast<int>(SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(label.c_str())));
@@ -137,7 +139,9 @@ void loadIntoDialog(HWND dlg) {
     size_t n = 0;
     const LanguageInfo* langs = languages(&n);
     int sel = 0;
+    // Only what setup installed; the list carries the real table index as item data.
     for (size_t i = 0; i < n; ++i) {
+        if (!isLanguageInstalled(langs[i].key)) continue;
         int idx = static_cast<int>(SendMessageW(lc, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(langs[i].display)));
         SendMessageW(lc, CB_SETITEMDATA, idx, static_cast<LPARAM>(i));
         if (_wcsicmp(langs[i].key, g_settings.language.c_str()) == 0) sel = idx;

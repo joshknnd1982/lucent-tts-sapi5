@@ -213,14 +213,19 @@ escape hangs the engine, so the wrapper escapes all backslashes in user text.
   SpVoice a purge completes in about 20 ms.
 * Rate, pitch and volume changes reach the engine as speaker parameters and set-value
   packets; nothing is resampled or post-processed.
-* Seventeen SAPI voices are registered through a token enumerator: **Lucent Custom
+* Up to seventeen SAPI voices are registered through a token enumerator: **Lucent Custom
   Voice** (all parameters from the configuration utility) plus the sixteen named voices.
+  The enumerator lists only the ones setup installed — see
+  [Choosing languages and voices](#choosing-languages-and-voices).
 
 ## Installing
 
-1. Download `LucentSAPI_Setup.exe` from the Releases page and run it as administrator.
-2. Choose whether you want a desktop icon for the configuration utility.
-3. Select a "Lucent ..." voice in your screen reader or SAPI application.
+1. Download `LucentSAPI_Setup_<version>.exe` from the Releases page and run it as
+   administrator.
+2. On the **Select Components** page, choose the languages and voices you want (see
+   below).
+3. Choose whether you want a desktop icon for the configuration utility.
+4. Select a "Lucent ..." voice in your screen reader or SAPI application.
 
 The installer puts the DLLs, the utility and the engine under `C:\Program Files\LucentSAPI`,
 registers the 32-bit DLL with the 32-bit `regsvr32` view and the 64-bit DLL with the
@@ -228,9 +233,47 @@ registers the 32-bit DLL with the 32-bit `regsvr32` view and the 64-bit DLL with
 views) and writes a full setup log to `%TEMP%\Setup Log <date> #<n>.txt`. Uninstalling
 removes the registrations, the files and the generated channel files.
 
+### Choosing languages and voices
+
+The components page is an ordinary tree of checkboxes, so a screen reader reads and
+toggles it like any other list. Each of the eight languages is an item and its voices
+are items underneath it, so clearing a language clears its voices with it. Four presets
+are offered — **Full** (all 8 languages, all 16 voices), **US English only**, **all
+languages, male voices only**, and **Custom** — and changing any checkbox switches the
+type to Custom. Setup refuses to continue if you select a language without a voice, or
+nothing at all.
+
+The full engine is about 121 MB on disk; one voice in one language is under 20 MB. Most
+of that is the language's front end — its text normalisation and pronunciation models —
+so dropping a *voice* usually saves little space: US English is the only language with
+separate male and female inventories, and everywhere else the female voice is the male
+inventory at a higher pitch. What dropping a voice always does is keep it out of the
+Windows voice list, which is the point when a screen reader cycles through voices one
+key press at a time.
+
+Setup records the choice in `voices.ini` next to `LucentSAPI.dll`:
+
+```ini
+[languages]
+EnglishUS=1
+[voices]
+EnglishUS.John=1
+```
+
+Both SAPI DLLs and the configuration utility read that file (`src/installed_voices.cpp`),
+so Windows only ever offers voices whose data is on disk and the utility's language and
+voice lists match. Re-running setup with a narrower selection deletes the language data,
+channel templates and inventories that were cleared, so an installation never keeps a
+voice you did not ask for. With no `voices.ini` — a build tree, or an installation made
+by 1.0.x — everything is offered, which is the old behaviour.
+
+The **Lucent Custom Voice** is always installed. It speaks with whatever language and
+speaker the configuration utility is set to; if `settings.ini` names one that is not
+installed, it falls back to the first language and voice that are.
+
 ## SmartScreen, Defender and code signing
 
-The first time you run `LucentSAPI_Setup.exe` Windows 11 shows a blue dialog headed
+The first time you run `LucentSAPI_Setup_<version>.exe` Windows 11 shows a blue dialog headed
 **"Windows protected your PC"**, with a **Run anyway** button hidden behind **More info**.
 Some browsers add their own warning on the download. This is expected, it is not a virus
 detection, and it does not mean the installer has been tampered with.
@@ -247,7 +290,7 @@ reports this installer clean.
 You can confirm that yourself before running anything:
 
 ```
-"%ProgramFiles%\Windows Defender\MpCmdRun.exe" -Scan -ScanType 3 -File "%USERPROFILE%\Downloads\LucentSAPI_Setup.exe"
+"%ProgramFiles%\Windows Defender\MpCmdRun.exe" -Scan -ScanType 3 -File "%USERPROFILE%\Downloads\LucentSAPI_Setup_1.1.0.exe"
 ```
 
 If Defender ever does report a threat name for this file, it is a false positive. Report
@@ -366,7 +409,7 @@ build_all.bat
 ```
 
 `build_all.bat` builds both architectures, runs the engine self-test with each, and
-produces `output\LucentSAPI_Setup.exe`. `build_arch.bat x86|x64 [target]` builds one
+produces `output\LucentSAPI_Setup_<version>.exe`. `build_arch.bat x86|x64 [target]` builds one
 architecture.
 
 ## Testing
@@ -384,8 +427,9 @@ architecture.
 
 ```
 src/            engine client, settings, SAPI engine + enumerator, configuration utility
+                installed_voices.cpp reads the voices.ini setup writes
 test/           engine_test, sapi_test, a11y_dump
-installer/      Inno Setup script and the engine staging script
+installer/      Inno Setup script, the engine staging script and the metadata check
 docs/           PROTOCOL.md — the recovered engine protocol
 CMakeLists.txt  both architectures from one tree
 build_all.bat   full build including the installer

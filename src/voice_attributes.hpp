@@ -3,9 +3,11 @@
 // SAPI voice list: token 0 is the "Lucent Custom Voice" whose parameters live in
 // settings.ini; the rest are the named speakers shipped with the engine.
 //
+#include <cstddef>
 #include <string>
 #include <vector>
 #include "utils.hpp"
+#include "installed_voices.h"
 #include "lucent_settings.h"
 
 namespace Lucent {
@@ -97,11 +99,27 @@ private:
     int index_;
 };
 
+// Every voice the engine knows about, installed or not.  A voice index stays the
+// same on every machine, so it is safe to publish as the token's VoiceIndex.
 inline int voice_count() noexcept
 {
     size_t n = 0;
     lucent::speakers(&n);
     return static_cast<int>(n) + 1;
+}
+
+// The voice indices this installation actually has data for: the custom voice,
+// then one per installed named speaker.  This is what SAPI is shown.
+inline std::vector<int> installed_voice_indices()
+{
+    std::vector<int> indices;
+    const std::vector<std::size_t>& speakers = lucent::installedSpeakers();
+    indices.reserve(speakers.size() + 1);
+    indices.push_back(kCustomVoiceIndex);
+    for (std::size_t i : speakers) {
+        indices.push_back(static_cast<int>(i) + 1);
+    }
+    return indices;
 }
 
 }

@@ -1,4 +1,5 @@
 #include "lucent_settings.h"
+#include "installed_voices.h"
 #include <cmath>
 #include <cstdio>
 #include <fstream>
@@ -174,13 +175,40 @@ bool loadSettings(Settings& s) {
     s.applySapiProsody = readInt(L"audio", L"applysapiprosody", d.applySapiProsody ? 1 : 0, path) != 0;
     s.logging = readInt(L"diagnostics", L"logging", d.logging ? 1 : 0, path) != 0;
     s.loggingEngine = readInt(L"diagnostics", L"enginelog", d.loggingEngine ? 1 : 0, path) != 0;
-    if (!findLanguage(s.language)) s.language = d.language;
-    if (!findSpeaker(s.language, s.speaker)) {
-        // pick the first speaker of the language
-        size_t n = 0;
-        const SpeakerInfo* sp = speakers(&n);
-        for (size_t i = 0; i < n; ++i) {
-            if (_wcsicmp(sp[i].language, s.language.c_str()) == 0) { s.speaker = sp[i].name; break; }
+    // settings.ini can name a language or a voice this installation does not have -
+    // setup installs any subset of them - so fall back to something that is present.
+    size_t nl = 0, ns = 0;
+    const LanguageInfo* langs = languages(&nl);
+    const SpeakerInfo* sp = speakers(&ns);
+    if (!findLanguage(s.language) || !isLanguageInstalled(s.language)) {
+        if (isLanguageInstalled(d.language)) {
+            s.language = d.language;
+        } else if (!installedLanguages().empty()) {
+            s.language = langs[installedLanguages().front()].key;
+        }
+    }
+    size_t current = ns;
+    for (size_t i = 0; i < ns; ++i) {
+        if (_wcsicmp(sp[i].language, s.language.c_str()) == 0 && _wcsicmp(sp[i].name, s.speaker.c_str()) == 0) {
+            current = i;
+            break;
+        }
+    }
+    if (current == ns || !isSpeakerInstalled(current)) {
+        current = ns;
+        // the first installed speaker of that language ...
+        for (size_t i = 0; i < ns; ++i) {
+            if (_wcsicmp(sp[i].language, s.language.c_str()) == 0 && isSpeakerInstalled(i)) {
+                s.speaker = sp[i].name;
+                current = i;
+                break;
+            }
+        }
+        // ... or, if the language has none, the first installed voice of any language
+        if (current == ns && !installedSpeakers().empty()) {
+            const SpeakerInfo& first = sp[installedSpeakers().front()];
+            s.speaker = first.name;
+            s.language = first.language;
         }
     }
     return exists;

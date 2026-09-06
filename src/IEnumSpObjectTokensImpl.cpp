@@ -15,12 +15,15 @@ IEnumSpObjectTokensImpl::IEnumSpObjectTokensImpl(bool initialize)
         return;
     }
 
-    const int n = voice_count();
-    sapi_voices_.reserve(static_cast<size_t>(n));
-    for (int i = 0; i < n; ++i) {
+    // Only the voices setup installed: offering a voice whose language data is
+    // absent would put a name in the Windows voice list that cannot speak.
+    const std::vector<int> indices = installed_voice_indices();
+    sapi_voices_.reserve(indices.size());
+    for (int i : indices) {
         sapi_voices_.emplace_back(i);
     }
-    LLOG("enumerator: %d voices", n);
+    LLOG("enumerator: %d of %d voices installed%s", static_cast<int>(indices.size()), voice_count(),
+         lucent::haveVoiceManifest() ? "" : " (no voices.ini; offering everything)");
 }
 
 IEnumSpObjectTokensImpl::ISpObjectTokenPtr IEnumSpObjectTokensImpl::create_token(

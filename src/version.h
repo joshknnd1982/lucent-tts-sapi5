@@ -8,12 +8,12 @@
 #define LUCENT_VERSION_H
 
 #define LUCENT_VER_MAJOR 1
-#define LUCENT_VER_MINOR 0
-#define LUCENT_VER_PATCH 2
+#define LUCENT_VER_MINOR 1
+#define LUCENT_VER_PATCH 0
 #define LUCENT_VER_BUILD 0
 
-#define LUCENT_VERSION_COMMA 1, 0, 2, 0
-#define LUCENT_VERSION_STR   "1.0.2.0"
+#define LUCENT_VERSION_COMMA 1, 1, 0, 0
+#define LUCENT_VERSION_STR   "1.1.0.0"
 
 #define LUCENT_COMPANY   "Lucent TTS SAPI 5 wrapper project"
 #define LUCENT_PRODUCT   "Lucent TTS SAPI 5"
