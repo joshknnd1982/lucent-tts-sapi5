@@ -118,16 +118,27 @@ Name: "desktopicon"; Description: "Create a &desktop icon for the Lucent TTS Con
 
 [Files]
 ; --- program files ---
+; Upgrading while a SAPI application is running is the normal case, and any
+; application that has merely listed the installed voices still has the DLL
+; mapped.  Deleting a mapped image fails with "access denied", which without
+; restartreplace aborts and rolls back the entire installation - so an upgrade
+; would fail for exactly the users most likely to be running one.  With it, a
+; DLL that cannot be replaced now is replaced on the next restart instead; the
+; COM registration is only registry entries naming the path, so it stays valid
+; across the swap.  CloseApplications is off on purpose: setup must never close
+; somebody's screen reader.
+;
 ; 32-bit SAPI engine DLL, registered with the 32-bit regsvr32 view
-Source: "{#SrcRoot}\output\LucentSAPI.dll"; DestDir: "{app}"; Flags: ignoreversion regserver 32bit; Components: core
+Source: "{#SrcRoot}\output\LucentSAPI.dll"; DestDir: "{app}"; Flags: ignoreversion restartreplace uninsrestartdelete regserver 32bit; Components: core
 ; 64-bit SAPI engine DLL (only on 64-bit Windows)
-Source: "{#SrcRoot}\output\x64\LucentSAPI.dll"; DestDir: "{app}\x64"; Flags: ignoreversion regserver 64bit; Check: Is64BitInstallMode; Components: core\x64
+Source: "{#SrcRoot}\output\x64\LucentSAPI.dll"; DestDir: "{app}\x64"; Flags: ignoreversion restartreplace uninsrestartdelete regserver 64bit; Check: Is64BitInstallMode; Components: core\x64
 ; configuration utility
-Source: "{#SrcRoot}\output\LucentConfig.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: core
+Source: "{#SrcRoot}\output\LucentConfig.exe"; DestDir: "{app}"; Flags: ignoreversion restartreplace uninsrestartdelete; Components: core
 
 ; --- shared engine ---
 ; ttsserver.exe and the language-independent intonation databank every channel uses.
-Source: "{#Engine}\ttsserver.exe"; DestDir: "{app}\engine"; Flags: ignoreversion; Components: core
+; One ttsserver.exe runs per SAPI client process, so this one can be mapped too.
+Source: "{#Engine}\ttsserver.exe"; DestDir: "{app}\engine"; Flags: ignoreversion restartreplace uninsrestartdelete; Components: core
 Source: "{#Langs}\common\*"; DestDir: "{app}\engine\data\languages\common"; Flags: ignoreversion; Components: core
 
 ; --- per-language data ---
