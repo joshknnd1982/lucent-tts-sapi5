@@ -75,6 +75,14 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void** ppv)
 
 STDAPI DllCanUnloadNow()
 {
+    // Once the engine child process and its background reader thread exist, the module
+    // owns resources that outlive every COM object, so it must never be unloaded until the
+    // process exits - even when the last Lucent object is released because another SAPI
+    // voice was selected.  (The module is also pinned once the engine launches; this is
+    // the same guarantee stated to COM.)
+    if (Lucent::sapi::EngineHasLaunched()) {
+        return S_FALSE;
+    }
     return Lucent::com::object_counter::is_zero() ? S_OK : S_FALSE;
 }
 

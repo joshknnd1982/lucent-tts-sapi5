@@ -3,6 +3,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <atomic>
 #include "utils.hpp"
 #include "ISpTTSEngineImpl.hpp"
 #include "lucent_log.h"
@@ -23,11 +24,24 @@ lucent::LucentEngine* g_engine = nullptr;
 CRITICAL_SECTION g_engineCs;
 bool g_engineCsInit = false;
 HINSTANCE g_dll = nullptr;
+
+// Settings are process-global and read from more than one thread: SetObjectToken runs on
+// the caller's thread while Speak/build_request run on a SAPI worker thread, and the
+// configuration utility can rewrite settings.ini underneath both. A dedicated lock guards
+// the shared copy, and callers take a private snapshot rather than reading it field by
+// field, so a concurrent reload can never be seen half-applied.
 lucent::Settings g_settings;
 FILETIME g_settingsTime = {};
 bool g_settingsLoaded = false;
+CRITICAL_SECTION g_settingsCs;
+bool g_settingsCsInit = false;
 
-void reload_settings_if_changed()
+// Set once the engine child process (and its background reader thread) exist. The DLL is
+// pinned at the same moment; this flag also keeps DllCanUnloadNow from ever reporting the
+// module free while they are alive.
+std::atomic<bool> g_engineLaunched{false};
+
+void reload_settings_locked()
 {
     FILETIME ft = lucent::settingsFileTime();
     if (!g_settingsLoaded || CompareFileTime(&ft, &g_settingsTime) != 0) {
@@ -40,6 +54,26 @@ void reload_settings_if_changed()
              g_settings.speed, g_settings.topPitch, g_settings.referenceLine, g_settings.bottomPitch, g_settings.breathiness,
              g_settings.spectralTilt, g_settings.frontVocalTract, g_settings.backVocalTract, g_settings.volume, g_settings.applySapiProsody ? 1 : 0);
     }
+}
+
+void reload_settings_if_changed()
+{
+    if (!g_settingsCsInit) { reload_settings_locked(); return; }
+    EnterCriticalSection(&g_settingsCs);
+    reload_settings_locked();
+    LeaveCriticalSection(&g_settingsCs);
+}
+
+// A private, consistent copy of the current settings. Everything that needs settings takes
+// one of these instead of reading the shared g_settings across a lock boundary.
+lucent::Settings current_settings()
+{
+    if (!g_settingsCsInit) { reload_settings_locked(); return g_settings; }
+    EnterCriticalSection(&g_settingsCs);
+    reload_settings_locked();
+    lucent::Settings copy = g_settings;
+    LeaveCriticalSection(&g_settingsCs);
+    return copy;
 }
 
 float rate_to_speed_factor(long rate)
@@ -224,6 +258,10 @@ std::vector<std::string> split_chunks(const std::string& text)
 void InitEngine(HINSTANCE dll)
 {
     g_dll = dll;
+    if (!g_settingsCsInit) {
+        InitializeCriticalSection(&g_settingsCs);
+        g_settingsCsInit = true;
+    }
     if (!g_engineCsInit) {
         InitializeCriticalSection(&g_engineCs);
         g_engineCsInit = true;
@@ -242,6 +280,17 @@ void CleanupEngine()
         DeleteCriticalSection(&g_engineCs);
         g_engineCsInit = false;
     }
+    if (g_settingsCsInit) {
+        DeleteCriticalSection(&g_settingsCs);
+        g_settingsCsInit = false;
+    }
+}
+
+// True once the engine child process and its reader thread exist. Read without a lock from
+// DllCanUnloadNow.
+bool EngineHasLaunched()
+{
+    return g_engineLaunched.load(std::memory_order_acquire);
 }
 
 ISpTTSEngineImpl::ISpTTSEngineImpl()
@@ -259,7 +308,7 @@ STDMETHODIMP ISpTTSEngineImpl::SetObjectToken(ISpObjectToken* pToken)
     }
 
     try {
-        reload_settings_if_changed();
+        const lucent::Settings settings = current_settings();
 
         DWORD index = 0;
         if (FAILED(pToken->GetDWORD(L"VoiceIndex", &index))) {
@@ -278,8 +327,8 @@ STDMETHODIMP ISpTTSEngineImpl::SetObjectToken(ISpObjectToken* pToken)
         voice_ = voice_attributes(static_cast<int>(index));
 
         if (voice_.is_custom()) {
-            sample_rate_ = g_settings.sampleRate;
-            const lucent::LanguageInfo* lang = lucent::findLanguage(g_settings.language);
+            sample_rate_ = settings.sampleRate;
+            const lucent::LanguageInfo* lang = lucent::findLanguage(settings.language);
             if (lang && !lang->has11k) sample_rate_ = 8000;
         } else {
             const lucent::LanguageInfo* lang = lucent::findLanguage(voice_.speaker()->language);
@@ -348,9 +397,9 @@ bool ISpTTSEngineImpl::build_request(lucent::VoiceRequest& req, long sapi_rate, 
 {
     const lucent::SpeakerInfo* sp = nullptr;
     if (voice_.is_custom()) {
-        reload_settings_if_changed();
-        sp = lucent::findSpeaker(g_settings.language, g_settings.speaker);
-        req.language = lucent::findLanguage(g_settings.language);
+        const lucent::Settings s = current_settings();
+        sp = lucent::findSpeaker(s.language, s.speaker);
+        req.language = lucent::findLanguage(s.language);
         if (!req.language || !sp) {
             LLOG("sapi: custom voice has no valid language/speaker");
             return false;
@@ -358,17 +407,17 @@ bool ISpTTSEngineImpl::build_request(lucent::VoiceRequest& req, long sapi_rate, 
         req.female = sp->female;
         req.channelSuffix = sp->channelSuffix;
         req.sampleRate = sample_rate_;
-        req.email = g_settings.emailPreprocessing && req.language->hasEmail;
-        req.topPitch = g_settings.topPitchHz();
-        req.referenceLine = g_settings.referenceLineHz();
-        req.bottomPitch = g_settings.bottomPitchHz();
-        req.frontVocalTract = g_settings.frontScale();
-        req.backVocalTract = g_settings.backScale();
-        req.speedFactor = g_settings.speedFactor();
-        req.volume = g_settings.volumeScale();
-        req.aspiration = g_settings.aspiration();
-        req.spectralTilt = g_settings.tilt();
-        if (g_settings.applySapiProsody) {
+        req.email = s.emailPreprocessing && req.language->hasEmail;
+        req.topPitch = s.topPitchHz();
+        req.referenceLine = s.referenceLineHz();
+        req.bottomPitch = s.bottomPitchHz();
+        req.frontVocalTract = s.frontScale();
+        req.backVocalTract = s.backScale();
+        req.speedFactor = s.speedFactor();
+        req.volume = s.volumeScale();
+        req.aspiration = s.aspiration();
+        req.spectralTilt = s.tilt();
+        if (s.applySapiProsody) {
             req.speedFactor *= rate_to_speed_factor(sapi_rate);
             const float pf = pitch_to_factor(sapi_pitch);
             req.topPitch = clamp_hz(req.topPitch * pf);
@@ -568,6 +617,17 @@ STDMETHODIMP ISpTTSEngineImpl::Speak(
                 return E_FAIL;
             }
             g_engine = new lucent::LucentEngine(dir);
+            // From here on this DLL owns a background reader thread and a child process
+            // that outlive every COM object. Pin the module so it can never be unloaded
+            // (e.g. by CoFreeUnusedLibraries when the last Lucent voice is released while
+            // another SAPI voice is selected) while they are alive - a stale unload would
+            // leave the reader thread running in unmapped memory. Teardown then happens
+            // only at process exit, where not joining the thread is safe.
+            HMODULE self = nullptr;
+            GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+                               reinterpret_cast<LPCWSTR>(&InitEngine), &self);
+            g_engineLaunched.store(true, std::memory_order_release);
+            LLOG("sapi: engine created; module pinned for the life of the process");
         }
 
         lucent::SpeakSink sink;

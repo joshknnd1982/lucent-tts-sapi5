@@ -302,7 +302,7 @@ reports this installer clean.
 You can confirm that yourself before running anything:
 
 ```
-"%ProgramFiles%\Windows Defender\MpCmdRun.exe" -Scan -ScanType 3 -File "%USERPROFILE%\Downloads\LucentSAPI_Setup_1.1.1.exe"
+"%ProgramFiles%\Windows Defender\MpCmdRun.exe" -Scan -ScanType 3 -File "%USERPROFILE%\Downloads\LucentSAPI_Setup_1.1.2.exe"
 ```
 
 If Defender ever does report a threat name for this file, it is a false positive. Report

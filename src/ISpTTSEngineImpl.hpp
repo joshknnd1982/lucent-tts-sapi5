@@ -55,5 +55,9 @@ private:
 void InitEngine(HINSTANCE dll);
 void CleanupEngine();
 
+// True once the engine child process and its background reader thread exist. While they
+// are alive the module must stay loaded, so DllCanUnloadNow never reports it free.
+bool EngineHasLaunched();
+
 }
 }
