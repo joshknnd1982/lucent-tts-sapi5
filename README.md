@@ -8,8 +8,9 @@ SAPI 4 component, drives the engine through its own reverse-engineered packet pr
 adds a fully accessible configuration utility.
 
 The installer for the current release is on the
-[Releases](https://github.com/joshknnd1982/lucent-tts-sapi5/releases) page. This
-repository holds the wrapper source only: the Lucent engine and its language data are
+[Releases](https://github.com/joshknnd1982/lucent-tts-sapi5/releases) page, and a copy is
+kept in the [releases](releases) folder of this repository. Apart from that setup program,
+the repository holds the wrapper source only: the Lucent engine and its language data are
 proprietary and are shipped inside the installer.
 
 ## Contents
@@ -441,6 +442,7 @@ src/            engine client, settings, SAPI engine + enumerator, configuration
                 installed_voices.cpp reads the voices.ini setup writes
 test/           engine_test, sapi_test, a11y_dump
 installer/      Inno Setup script, the engine staging script and the metadata check
+releases/       the built setup program for the current release
 docs/           PROTOCOL.md — the recovered engine protocol
 CMakeLists.txt  both architectures from one tree
 build_all.bat   full build including the installer
