@@ -78,6 +78,14 @@ from both the x86 and the x64 SAPI 5 DLL and never touches the SAPI 4 pieces.
 * **No spaces in module options.** The channel-file parser splits on whitespace and has no
   quoting, so any absolute path containing a space (`C:\Program Files\...`) breaks every
   module. The wrapper writes its channel files with paths relative to the engine folder.
+* **The e-mail preprocessor decodes `=20`, even inside a control tag.** On the e-mail
+  preprocessing channels the `emupp` module runs ahead of the front end and turns the
+  quoted-printable sequence `=20` into a space. The bookmark tag `\Mrk=20\` arrives as
+  `\Mrk \`, which is no longer a tag, so the voice says "backslash M R K backslash" and the
+  bookmark never fires; bookmarks 200–209 and 2000–2099, and `\Pau=` pauses of those
+  lengths, go the same way. Screen readers ask for a bookmark on every word, so any
+  utterance of twenty words or more hit it. `=20` is the only sequence it decodes and the
+  front ends accept leading zeros, so the wrapper writes those numbers as `\Mrk=020\`.
 
 ### Text a front end refuses outright
 
@@ -196,7 +204,10 @@ escape sequences:
 | `\\` | A literal backslash. |
 
 `\Vol` is not supported by the engine (volume is a channel value), and the `\!w`
-escape hangs the engine, so the wrapper escapes all backslashes in user text.
+escape hangs the engine, so the wrapper escapes all backslashes in user text. Numbers in a
+tag may carry leading zeros (`\Mrk=020\` is bookmark 20), which is how the wrapper keeps the
+e-mail preprocessor from decoding `=20` inside one (see
+[the engine quirks](#three-engine-quirks-worth-knowing)).
 
 ## How the wrapper works
 
@@ -290,7 +301,7 @@ reports this installer clean.
 You can confirm that yourself before running anything:
 
 ```
-"%ProgramFiles%\Windows Defender\MpCmdRun.exe" -Scan -ScanType 3 -File "%USERPROFILE%\Downloads\LucentSAPI_Setup_1.1.0.exe"
+"%ProgramFiles%\Windows Defender\MpCmdRun.exe" -Scan -ScanType 3 -File "%USERPROFILE%\Downloads\LucentSAPI_Setup_1.1.1.exe"
 ```
 
 If Defender ever does report a threat name for this file, it is a false positive. Report

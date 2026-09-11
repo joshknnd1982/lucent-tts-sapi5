@@ -121,6 +121,13 @@ escapes `\!R<0.1..2.0>` (rate), `\!si<ms>` (silence), `\!*H<0..64>` (prominence)
 `\!C"…"` (comment). A literal backslash is written `\\`. Never forward `\!w…`: it hangs
 the engine.
 
+Numbers in these tags may carry leading zeros (`\Mrk=020\` is bookmark 20). On a channel
+that runs the `emupp` e-mail preprocessor (the `x<lang>.<08|11><m|f>e.chn` templates) that
+matters: emupp decodes the quoted-printable `=20` to a space before the front end sees the
+text, tags included, so `\Mrk=20\` arrives as `\Mrk \` and is spoken as text. It decodes no
+other `=XX` sequence. The wrapper writes every tag value that starts with 20 with a leading
+zero.
+
 ## Channel files
 
 `data\chfiles\x<lang>.<08|11><m|f>[e].chn` list the module pipeline (front end, getaie,

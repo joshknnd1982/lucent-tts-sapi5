@@ -149,4 +149,11 @@ std::vector<std::string> splitIntoWords(const std::string& engineText) {
     return words;
 }
 
+std::string numericTag(const char* name, unsigned long value) {
+    const std::string digits = std::to_string(value);
+    // A leading zero keeps the value and breaks up the "=20" that emupp would decode.
+    const bool decodable = digits.compare(0, 2, "20") == 0;
+    return std::string(" \\") + name + "=" + (decodable ? "0" : "") + digits + "\\ ";
+}
+
 }  // namespace lucent

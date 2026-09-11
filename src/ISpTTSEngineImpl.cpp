@@ -7,6 +7,7 @@
 #include "ISpTTSEngineImpl.hpp"
 #include "lucent_log.h"
 #include "lucent_settings.h"
+#include "lucent_textfix.h"
 
 namespace Lucent {
 namespace sapi {
@@ -179,9 +180,7 @@ void append_escaped(std::wstring& out, const wchar_t* s, ULONG n)
 
 std::string marker_tag(uint32_t id)
 {
-    char buf[32];
-    snprintf(buf, sizeof(buf), " \\Mrk=%u\\ ", id);
-    return buf;
+    return lucent::numericTag("Mrk", id);   // never "\Mrk=20\": the e-mail preprocessor would speak it
 }
 
 // Splits the engine text into chunks at sentence boundaries, never inside a tag.
@@ -466,9 +465,8 @@ STDMETHODIMP ISpTTSEngineImpl::Speak(
                 break;
             }
             case SPVA_Silence: {
-                wchar_t buf[48];
-                swprintf_s(buf, L" \\Pau=%lu\\ ", static_cast<unsigned long>(frag->State.SilenceMSecs));
-                text += buf;
+                const std::string tag = lucent::numericTag("Pau", frag->State.SilenceMSecs);
+                text.append(tag.begin(), tag.end());
                 break;
             }
             case SPVA_Speak:

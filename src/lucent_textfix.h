@@ -1,6 +1,7 @@
 #pragma once
 //
-// Repairs for engine text that a Lucent front end refuses to synthesise.
+// Repairs for engine text that a Lucent front end refuses to synthesise, and the formatting
+// of the control tags the wrapper adds to that text.
 //
 // Some front ends reject an utterance outright rather than skipping the part they cannot
 // handle: the module chain fails ("[fslmlfe.compose] ... resulted in an empty machine",
@@ -53,5 +54,18 @@ std::string repairText(const std::string& engineText, int pass, unsigned int cod
 // control tags that preceded it - for the last-resort retry. A single rejected token then
 // costs one word instead of the whole utterance.
 std::vector<std::string> splitIntoWords(const std::string& engineText);
+
+// Formats a numeric control tag the wrapper adds to engine text - " \Mrk=7\ ", " \Pau=250\ " -
+// with a space on each side, so it never runs into the text around it.
+//
+// On the e-mail preprocessing channels the emupp module runs ahead of the front end and
+// decodes the quoted-printable sequence "=20" into a space wherever it appears, control tags
+// included. "\Mrk=20\" reaches the front end as "\Mrk \", which is no longer a tag, so it is
+// read aloud - "backslash M R K backslash" - and bookmark 20 never fires. Every value whose
+// decimal form starts with 20 is hit: 20, 200-209, 2000-2099 and so on. "=20" is the only
+// sequence emupp decodes ("=3D", "=41" and "=09" pass through), and the front ends read the
+// number with leading zeros - "\Mrk=020\" is bookmark 20 on every channel - so those values
+// get one and all others are written as they always were.
+std::string numericTag(const char* name, unsigned long value);
 
 }  // namespace lucent

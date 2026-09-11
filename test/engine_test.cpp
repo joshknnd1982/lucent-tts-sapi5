@@ -12,6 +12,7 @@
 #include <thread>
 #include "../src/lucent_engine.h"
 #include "../src/lucent_log.h"
+#include "../src/lucent_textfix.h"
 
 using namespace lucent;
 
@@ -113,6 +114,63 @@ int wmain(int argc, wchar_t** argv) {
         for (auto& m : marks) wprintf(L" %u@%u", m.first, m.second);
         wprintf(L", %zu bytes)\n", pcm.size());
         if (!good) failures++;
+    }
+
+    // Bookmark values the e-mail preprocessor would mangle. emupp decodes the quoted-printable
+    // "=20" even inside a control tag, so a bare \Mrk=20\ is read aloud instead of firing, and
+    // numericTag() writes such values with a leading zero. Every language is checked with and
+    // without e-mail preprocessing: each bookmark must come back, and the tags must add no
+    // audio of their own (one read aloud adds about a second and a half).
+    {
+        std::vector<uint32_t> ids;
+        for (uint32_t id = 1; id <= 24; ++id) ids.push_back(id);
+        for (uint32_t id = 198; id <= 211; ++id) ids.push_back(id);
+        for (uint32_t id : { 1999u, 2000u, 2001u, 2050u, 2099u, 2100u, 20000u, 20999u, 21000u }) ids.push_back(id);
+        std::wstring lastLanguage;
+        for (size_t i = 0; i < n; ++i) {
+            const SpeakerInfo& sp = sps[i];
+            if (lastLanguage == sp.language) continue;   // one voice per language
+            if (!filter.empty() && !wcsstr(sp.name, filter.c_str()) && !wcsstr(sp.language, filter.c_str())) continue;
+            lastLanguage = sp.language;
+            VoiceRequest req = requestFor(sp, 11025);
+            const bool mandarin = req.language->engineIndex == LANG_ChineseMandarin;
+            // One ordinary word per bookmark, so no tag is folded into its neighbour.
+            const wchar_t* word = L"word";
+            if (!wcscmp(sp.language, L"German")) word = L"Wort";
+            else if (wcsstr(sp.language, L"French")) word = L"mot";
+            else if (!wcscmp(sp.language, L"Italian")) word = L"parola";
+            else if (wcsstr(sp.language, L"Spanish")) word = L"palabra";
+            else if (mandarin) word = L"你好";
+            std::wstring tagged, bare;
+            for (uint32_t id : ids) {
+                const std::string tag = numericTag("Mrk", id);
+                tagged.append(tag.begin(), tag.end());
+                tagged += word;
+                bare += L' ';
+                bare += word;
+            }
+            tagged += mandarin ? L"。" : L".";
+            bare += mandarin ? L"。" : L".";
+            for (bool email : { false, true }) {
+                if (email && !req.language->hasEmail) continue;
+                req.email = email;
+                std::vector<uint32_t> got;
+                size_t taggedBytes = 0, bareBytes = 0;
+                SpeakSink s1;
+                s1.onAudio = [&](const uint8_t*, size_t len) { taggedBytes += len; return true; };
+                s1.onBookmark = [&](uint32_t id, uint32_t) { got.push_back(id); };
+                SpeakSink s2;
+                s2.onAudio = [&](const uint8_t*, size_t len) { bareBytes += len; return true; };
+                s2.onBookmark = [](uint32_t, uint32_t) {};
+                bool aborted = false;
+                const bool ok = engine.speak(req, toCodePage(tagged, req.language->codePage), s1, &aborted) &&
+                                engine.speak(req, toCodePage(bare, req.language->codePage), s2, &aborted);
+                const bool good = ok && got == ids && bareBytes > 0 && taggedBytes <= bareBytes + bareBytes / 50 + 2000;
+                wprintf(L"tag values %s%s: %s (%zu of %zu bookmarks, %zu bytes, %zu without tags)\n", sp.language,
+                        email ? L" e-mail" : L"", good ? L"ok" : L"FAIL", got.size(), ids.size(), taggedBytes, bareBytes);
+                if (!good) failures++;
+            }
+        }
     }
 
     // Cancellation: abort from the sink after the first packet and from another thread.
