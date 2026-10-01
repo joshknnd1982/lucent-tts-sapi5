@@ -13,7 +13,7 @@
 
 * **Gozaltech** — the BestSpeech SAPI 5 wrapper whose COM helpers, registry wrapper,
   SAPI token enumerator and engine-object skeleton this project started from
-  (BSD-licensed; see `LICENSE`).
+  (BSD-licensed; see `NOTICE.md`).
 * **Josh Kennedy (joshknnd1982)** — the reverse engineering of the engine protocol, the
   engine client, the SAPI 5 engine, the configuration utility, the tests and the installer.
 

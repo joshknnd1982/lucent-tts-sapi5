@@ -450,8 +450,10 @@ build_all.bat   full build including the installer
 
 ## Credits and license
 
-The wrapper is released under the BSD 3-Clause license (see `LICENSE`); the people and
-projects it builds on are listed in `CREDITS.md`. The Lucent Articulator engine, its
-language data and voices are the property of their respective owners and are provided in
-the installer for preservation of an otherwise unusable abandonware product; they are not
-covered by the wrapper's license.
+The code written for this project is licensed under the MIT License (see `LICENSE`). The
+portions that come from Gozaltech's BestSpeech SAPI 5 wrapper stay under its BSD 3-Clause
+license, which is reproduced in `NOTICE.md`. The people and projects the wrapper builds on
+are listed in `CREDITS.md`. The Lucent Articulator engine, its language data and voices are
+the property of their respective owners and are provided in the installer for preservation
+of an otherwise unusable abandonware product; they are not covered by the wrapper's
+license.
